@@ -1,0 +1,16 @@
+[package]
+name = "spawn-cli"
+version = "0.1.0"
+edition = "2021"
+description = "A command-line tool for creating files and folders from a template."
+license = "MIT" 
+authors = ["Paul van der Meijs"]
+repository = "https://github.com/paulvandermeijs/spawn"
+keywords = ["cli"]
+
+[[bin]]
+name = "spwn"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5.27", features = ["derive"] }
