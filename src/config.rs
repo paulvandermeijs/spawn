@@ -1,25 +1,82 @@
 use anyhow::{Error, Result};
 use directories::ProjectDirs;
 use log::info;
-use std::path::Path;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, path::PathBuf};
 
-pub(crate) fn config_dir() -> Option<std::path::PathBuf> {
+#[derive(Default, Deserialize, Serialize)]
+pub struct Config {
+    aliases: HashMap<String, String>,
+}
+
+impl Config {
+    pub fn read() -> Config {
+        let config_path = config_path();
+        let Ok(config_data) = std::fs::read_to_string(&config_path) else {
+            return Default::default();
+        };
+
+        info!("Using config file {config_path:?}");
+
+        let config: Config = toml::from_str(&config_data).unwrap();
+
+        config
+    }
+
+    pub fn write(&self) -> Result<()> {
+        let config_data = toml::to_string(self).unwrap();
+        let config_path = config_path();
+
+        if let Some(parent) = config_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        info!("Writing config to {config_path:?}");
+
+        std::fs::write(config_path, config_data).map_err(|_| Error::msg("Couldn't write config"))
+    }
+
+    pub fn resolve_alias(&self, uri: String) -> String {
+        if let Some(uri) = self.aliases.get(&uri) {
+            uri.clone()
+        } else {
+            uri
+        }
+    }
+
+    pub fn get_aliases(&self) -> &HashMap<String, String> {
+        &self.aliases
+    }
+
+    pub fn add_alias(&mut self, name: String, uri: String) -> &Self {
+        self.aliases.insert(name, uri);
+
+        self
+    }
+
+    pub fn remove_alias(&mut self, name: String) -> &Self {
+        self.aliases.remove(&name);
+
+        self
+    }
+}
+
+pub(crate) fn config_dir() -> Option<PathBuf> {
     ProjectDirs::from("com", "paulvandermeijs", "spwn")
         .map(|proj_dirs| proj_dirs.config_dir().to_path_buf())
 }
 
-pub(crate) fn cache_dir() -> Option<std::path::PathBuf> {
+pub(crate) fn cache_dir() -> Option<PathBuf> {
     ProjectDirs::from("com", "paulvandermeijs", "spwn")
         .map(|proj_dirs| proj_dirs.cache_dir().to_path_buf())
 }
 
 pub(crate) fn get_global_ignore() -> Result<Vec<String>> {
-    let Some(config_dir) = config_dir() else {
+    let Some(mut global_ignore_file) = config_dir() else {
         return Err(Error::msg("No config directory"));
     };
 
-    let global_ignore_file = format!("{}/.spwnignore_global", config_dir.display());
-    let global_ignore_file = Path::new(&global_ignore_file);
+    global_ignore_file.push(".spwnignore_global");
 
     if !global_ignore_file.is_file() {
         return Err(Error::msg("No global ignore file"));
@@ -33,4 +90,12 @@ pub(crate) fn get_global_ignore() -> Result<Vec<String>> {
     let lines = crate::fs::read_lines(global_ignore_file)?;
 
     Ok(lines)
+}
+
+fn config_path() -> PathBuf {
+    let mut config_path = config_dir().unwrap();
+
+    config_path.push("config.toml");
+
+    config_path
 }

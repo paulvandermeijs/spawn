@@ -1,6 +1,6 @@
 [package]
 name = "spawn-cli"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "A command-line tool for creating files and folders from a template."
 license = "MIT" 
@@ -16,6 +16,7 @@ path = "src/main.rs"
 anyhow = "1.0.95"
 clap = { version = "4.5.27", features = ["derive"] }
 clap-verbosity = "2.1.0"
+comfy-table = "7.1.4"
 directories = "6.0.0"
 env_logger = "0.11.6"
 gix = { version = "0.70.0", features = ["blocking-network-client"] }
@@ -23,6 +24,8 @@ globset = "0.4.15"
 inquire = "0.7.5"
 log = "0.4.25"
 pathdiff = "0.2.3"
+serde = { version = "1.0.218", features = ["derive"] }
 sha2 = "0.10.8"
 tera = "1.20.0"
+toml = "0.8.20"
 walkdir = "2.5.0"

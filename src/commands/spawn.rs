@@ -4,11 +4,16 @@ use log::{info, warn};
 use std::{env, fs::File};
 use tera::{Context, Tera};
 
-use crate::{config::get_global_ignore, template::Template};
+use crate::{
+    config::{get_global_ignore, Config},
+    template::Template,
+};
 
 const FILENAME_TEMPLATE_NAME: &str = "__filename_template";
 
-pub(crate) fn spawn(uri: String) -> Result<()> {
+pub(crate) fn spawn(config: &Config, uri: String) -> Result<()> {
+    let uri = config.resolve_alias(uri);
+
     info!("Using template {uri:?}");
 
     let cwd = env::current_dir()?;

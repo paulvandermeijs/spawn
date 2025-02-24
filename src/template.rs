@@ -1,7 +1,6 @@
-use std::path::{Path, PathBuf};
-
 use anyhow::{Error, Result};
 use log::info;
+use std::path::PathBuf;
 
 use crate::config::cache_dir;
 
@@ -29,19 +28,21 @@ impl Template {
     }
 
     pub fn cache_dir(&self) -> Result<PathBuf> {
-        let Some(cache_dir) = cache_dir() else {
+        let Some(mut cache_dir) = cache_dir() else {
             return Err(Error::msg("No cache directory"));
         };
-        let cache_dir = format!("{}/{}", cache_dir.display(), self.hash);
-        let cache_dir = PathBuf::from(cache_dir);
+
+        cache_dir.push(&self.hash);
 
         Ok(cache_dir)
     }
 
     pub fn get_ignore(&self) -> Result<Vec<String>> {
-        let cache_dir = self.cache_dir()?;
-        let template_ignore_file = format!("{}/.spwnignore", cache_dir.display());
-        let template_ignore_file = Path::new(&template_ignore_file);
+        let Some(mut template_ignore_file) = cache_dir() else {
+            return Err(Error::msg("No cache directory"));
+        };
+
+        template_ignore_file.push(".spwnignore");
 
         if !template_ignore_file.is_file() {
             return Err(Error::msg("No template ignore file"));
