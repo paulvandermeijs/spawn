@@ -115,7 +115,7 @@ fn collect_vars(template: &tera::Template, context: &mut tera::Context) -> Resul
             continue;
         }
 
-        let value = inquire::Text::new(&format!("Provide a value for '{ident}'")).prompt()?;
+        let value = inquire::Text::new(&format!("Provide a value for '{ident}':")).prompt()?;
 
         context.insert(ident, &value);
     }
