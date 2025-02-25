@@ -58,6 +58,8 @@ fn main() {
         .filter_level(cli.verbose.log_level_filter())
         .init();
 
+    config::init().unwrap();
+
     let mut config = Config::read();
 
     use commands::{alias, spawn};

@@ -4,6 +4,8 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
+const IGNORE_GLOBAL_FILENAME: &str = ".spwnignore_global";
+
 #[derive(Default, Deserialize, Serialize)]
 pub struct Config {
     aliases: HashMap<String, String>,
@@ -61,6 +63,28 @@ impl Config {
     }
 }
 
+pub(crate) fn init() -> Result<()> {
+    let Some(config_dir) = config_dir() else {
+        return Err(Error::msg("No config directory"));
+    };
+
+    if config_dir.is_dir() {
+        return Ok(());
+    }
+
+    let config_dir = config_dir.as_path();
+
+    info!("Initializing config at {config_dir:?}");
+
+    std::fs::create_dir_all(config_dir)?;
+    std::fs::write(
+        config_dir.join(IGNORE_GLOBAL_FILENAME),
+        include_str!("../.spwnignore_global"),
+    )?;
+
+    Ok(())
+}
+
 pub(crate) fn config_dir() -> Option<PathBuf> {
     ProjectDirs::from("com", "paulvandermeijs", "spwn")
         .map(|proj_dirs| proj_dirs.config_dir().to_path_buf())
@@ -76,7 +100,7 @@ pub(crate) fn get_global_ignore() -> Result<Vec<String>> {
         return Err(Error::msg("No config directory"));
     };
 
-    global_ignore_file.push(".spwnignore_global");
+    global_ignore_file.push(IGNORE_GLOBAL_FILENAME);
 
     if !global_ignore_file.is_file() {
         return Err(Error::msg("No global ignore file"));
