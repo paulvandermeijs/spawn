@@ -1,18 +1,28 @@
+mod config;
+
 use anyhow::{Error, Result};
 use log::info;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::OnceLock};
 
 use crate::config::cache_dir;
+use crate::template::config::Config;
+
+const IGNORE_FILENAME: &str = ".spwnignore";
+const CONFIG_DIR: &str = ".spwn";
+const CONFIG_FILENAME: &str = "config.toml";
 
 pub(crate) struct Template {
     pub uri: String,
     pub hash: String,
+    config: OnceLock<Config>,
 }
 
 impl Template {
     pub fn from_uri(uri: String) -> Self {
         let hash = create_hash(&uri);
-        Template { uri, hash }
+        let config = OnceLock::new();
+
+        Template { uri, hash, config }
     }
 
     pub fn init(&self) -> Result<&Self> {
@@ -37,12 +47,14 @@ impl Template {
         Ok(cache_dir)
     }
 
-    pub fn get_ignore(&self) -> Result<Vec<String>> {
-        let Some(mut template_ignore_file) = cache_dir() else {
-            return Err(Error::msg("No cache directory"));
-        };
+    pub fn config_dir(&self) -> Result<PathBuf> {
+        let config_dir = self.cache_dir()?.as_path().join(CONFIG_DIR);
 
-        template_ignore_file.push(".spwnignore");
+        Ok(config_dir)
+    }
+
+    pub fn get_ignore(&self) -> Result<Vec<String>> {
+        let template_ignore_file = self.cache_dir()?.as_path().join(IGNORE_FILENAME);
 
         if !template_ignore_file.is_file() {
             return Err(Error::msg("No template ignore file"));
@@ -56,6 +68,24 @@ impl Template {
         let lines = crate::fs::read_lines(template_ignore_file)?;
 
         Ok(lines)
+    }
+
+    pub fn get_config(&self) -> &Config {
+        let config = self.config.get_or_init(|| {
+            let config_path = self.config_dir().unwrap().as_path().join(CONFIG_FILENAME);
+
+            if !config_path.is_file() {
+                return Config::default();
+            }
+
+            info!("Using project config file {config_path:?}");
+
+            let config = Config::try_from_file(&config_path).unwrap();
+
+            config
+        });
+
+        config
     }
 }
 
