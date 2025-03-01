@@ -135,22 +135,38 @@ fn collect_vars(
         }
 
         let message = format!("Provide a value for '{ident}':");
-        let (message, help_message) = match template_config.get_var(&ident) {
-            Some(var) => {
-                let message = match &var.message {
-                    Some(message) => message,
-                    None => &message,
-                };
-                let help_message = var.help_message.as_ref();
+        let (message, help_message, placeholder, initial_value, default) =
+            match template_config.get_var(&ident) {
+                Some(var) => {
+                    let message = match &var.message {
+                        Some(message) => message,
+                        None => &message,
+                    };
+                    let help_message = var.help_message.as_ref();
+                    let placeholder = var.placeholder.as_ref();
+                    let initial_value = var.initial_value.as_ref();
+                    let default = var.default.as_ref();
 
-                (message, help_message)
-            }
-            None => (&message, None),
-        };
+                    (message, help_message, placeholder, initial_value, default)
+                }
+                None => (&message, None, None, None, None),
+            };
 
         let prompt = inquire::Text::new(message);
         let prompt = match help_message {
             Some(help_message) => prompt.with_help_message(help_message),
+            None => prompt,
+        };
+        let prompt = match placeholder {
+            Some(placeholder) => prompt.with_placeholder(placeholder),
+            None => prompt,
+        };
+        let prompt = match initial_value {
+            Some(initial_value) => prompt.with_initial_value(initial_value),
+            None => prompt,
+        };
+        let prompt = match default {
+            Some(default) => prompt.with_default(default),
             None => prompt,
         };
         let value = prompt.prompt()?;

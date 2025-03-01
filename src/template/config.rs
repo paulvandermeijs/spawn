@@ -28,4 +28,7 @@ pub(crate) struct Var {
     pub identifier: String,
     pub message: Option<String>,
     pub help_message: Option<String>,
+    pub placeholder: Option<String>,
+    pub initial_value: Option<String>,
+    pub default: Option<String>,
 }
