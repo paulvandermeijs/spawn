@@ -10,19 +10,25 @@ use crate::template::config::Config;
 const IGNORE_FILENAME: &str = ".spwnignore";
 const CONFIG_DIR: &str = ".spwn";
 const CONFIG_FILENAME: &str = "config.toml";
+const INFO_FILENAME: &str = "info.txt";
 
+#[derive(Default)]
 pub(crate) struct Template {
     pub uri: String,
     pub hash: String,
     config: OnceLock<Config>,
+    info: OnceLock<Option<String>>,
 }
 
 impl Template {
     pub fn from_uri(uri: String) -> Self {
         let hash = create_hash(&uri);
-        let config = OnceLock::new();
 
-        Template { uri, hash, config }
+        Template {
+            uri,
+            hash,
+            ..Default::default()
+        }
     }
 
     pub fn init(&self) -> Result<&Self> {
@@ -86,6 +92,24 @@ impl Template {
         });
 
         config
+    }
+
+    pub fn get_info(&self) -> Option<&String> {
+        let info = self.info.get_or_init(|| {
+            let info_path = self.config_dir().unwrap().as_path().join(INFO_FILENAME);
+
+            if !info_path.is_file() {
+                return None;
+            }
+
+            info!("Using info from {info_path:?}");
+
+            let info = std::fs::read_to_string(&info_path).unwrap();
+
+            Some(info)
+        });
+
+        info.as_ref()
     }
 }
 

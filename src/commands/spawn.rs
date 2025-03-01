@@ -26,6 +26,10 @@ pub(crate) fn spawn(config: &Config, uri: String) -> Result<()> {
     let mut tera = Tera::default();
     let mut context = Context::new();
 
+    if let Some(info) = template.get_info() {
+        println!("{info}");
+    }
+
     for path in walkdir::WalkDir::new(&cache_dir)
         .min_depth(1)
         .into_iter()
