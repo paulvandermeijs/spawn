@@ -1,6 +1,6 @@
 # Spawn
 
-A command-line tool for creating files and folders from a template.
+A scriptable command-line tool for creating files and folders from a template.
 
 ## Installation
 
@@ -19,39 +19,14 @@ providing the location of a Git repository as `URI`.
 spwn <URI>
 ```
 
-The template can be a collection of files and folders using Tera template
-syntax. The command will scan these files for identifiers and ask for values
-before creating the files and folders at their target location.
-
-[Follow this link to learn more about Tera templates.](https://keats.github.io/tera/)
+[Follow this link to learn more about using the command.](https://github.com/paulvandermeijs/spawn/wiki/Creating-A-Template)
 
 > [!TIP]  
 > The `spwn` command was chosen for this tool because it should be easy to type
 > on most keyboards by alternating between left and right hand.
 
-### Adding an alias
+The template can be a collection of files and folders using Tera template
+syntax. The command will scan these files for identifiers and ask for values
+before creating the files and folders at their target location.
 
-To avoid having to enter the complete URI every time, it is also possible to add
-an alias.
-
-Use the following command to add an alias:
-
-```bash
-spwn alias add <NAME> <URI>
-```
-
-### Removing an alias
-
-To remove an alias, use the following command:
-
-```bash
-spwn alias remove <NAME>
-```
-
-### Listing all aliases
-
-To show all available aliases use:
-
-```bash
-spwn alias list
-```
+[Follow this link to learn to learn how to create your own templates.](https://keats.github.io/tera/)

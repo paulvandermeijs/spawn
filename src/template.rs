@@ -1,7 +1,9 @@
 mod config;
+pub(crate) mod plugins;
 
 use anyhow::{Error, Result};
 use log::info;
+use plugins::Plugins;
 use std::{path::PathBuf, sync::OnceLock};
 
 use crate::config::cache_dir;
@@ -10,6 +12,7 @@ use crate::template::config::Config;
 const IGNORE_FILENAME: &str = ".spwnignore";
 const CONFIG_DIR: &str = ".spwn";
 const CONFIG_FILENAME: &str = "config.toml";
+const PLUGINS_FILENAME: &str = "plugins.scm";
 const INFO_FILENAME: &str = "info.txt";
 
 #[derive(Default)]
@@ -17,6 +20,7 @@ pub(crate) struct Template {
     pub uri: String,
     pub hash: String,
     config: OnceLock<Config>,
+    plugins: OnceLock<Plugins>,
     info: OnceLock<Option<String>>,
 }
 
@@ -92,6 +96,16 @@ impl Template {
         });
 
         config
+    }
+
+    pub fn get_plugins(&self) -> &Plugins {
+        let plugins = self.plugins.get_or_init(|| {
+            let plugins_path = self.config_dir().unwrap().as_path().join(PLUGINS_FILENAME);
+
+            Plugins::try_from_file(&plugins_path).unwrap()
+        });
+
+        plugins
     }
 
     pub fn get_info(&self) -> Option<&String> {
