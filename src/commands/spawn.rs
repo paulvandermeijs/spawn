@@ -1,7 +1,7 @@
 use anyhow::Result;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::{info, warn};
-use std::{env, fs::File};
+use std::{env, fs::File, path::PathBuf, str::FromStr};
 use tera::{Context, Tera};
 
 use crate::{
@@ -16,19 +16,28 @@ pub(crate) fn spawn(config: &Config, uri: String) -> Result<()> {
 
     info!("Using template {uri:?}");
 
+    let template = Template::from_uri(uri);
+    let plugins = template.get_plugins();
+    let info = template.get_info().map(|s| s.clone());
+    let info = plugins.info(info)?;
+
+    if let Some(info) = info {
+        println!("{info}");
+    }
+
     let cwd = env::current_dir()?;
+    let cwd = plugins.cwd(cwd.to_string_lossy().to_string())?;
+    let cwd = PathBuf::from_str(&cwd)?;
 
     info!("The current directory is {:?}", cwd.display());
 
-    let template = Template::from_uri(uri);
     let cache_dir = template.init()?.cache_dir()?;
     let ignore = get_ignore(&template);
     let mut tera = Tera::default();
-    let mut context = Context::new();
+    let context = Context::new();
+    let mut context = plugins.context(context)?;
 
-    if let Some(info) = template.get_info() {
-        println!("{info}");
-    }
+    info!("Initial context {context:?}");
 
     for path in walkdir::WalkDir::new(&cache_dir)
         .min_depth(1)
