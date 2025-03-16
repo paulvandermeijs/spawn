@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod fs;
+mod processor;
 mod repo;
 mod template;
 
