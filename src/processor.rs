@@ -1,8 +1,10 @@
+pub(crate) mod actions;
 mod prompt;
 
+use actions::{Action, ActionVec, Write};
 use anyhow::Result;
 use log::{info, warn};
-use std::{fs::File, path::PathBuf};
+use std::path::PathBuf;
 use tera::{Context, Tera};
 
 use crate::template::Template;
@@ -18,7 +20,7 @@ impl<'a> Processor<'a> {
         Self { template }
     }
 
-    pub(crate) fn process(&self, cwd: PathBuf) -> Result<()> {
+    pub(crate) fn process(&self, cwd: PathBuf) -> Result<ProcessResult> {
         let plugins = self.template.get_plugins();
         let cache_dir = self.template.init()?.cache_dir()?;
         let ignore = self.get_ignore();
@@ -27,6 +29,8 @@ impl<'a> Processor<'a> {
         let mut context = plugins.context(context)?;
 
         info!("Initial context {context:?}");
+
+        let mut actions: Vec<Action> = Vec::new();
 
         for path in walkdir::WalkDir::new(&cache_dir)
             .min_depth(1)
@@ -53,18 +57,18 @@ impl<'a> Processor<'a> {
             let mut target = cwd.clone();
             target.push(std::path::Path::new(&name));
 
-            info!("Writing to {target:?}");
+            let write = Write { name, target };
 
-            if let Some(parent) = target.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-
-            let file = File::create(target)?;
-
-            tera.render_to(&name, &context, file)?;
+            actions.push(write.into());
         }
 
-        Ok(())
+        let process_result = ProcessResult {
+            tera,
+            context,
+            actions,
+        };
+
+        Ok(process_result)
     }
 
     fn get_ignore(&self) -> globset::GlobSet {
@@ -139,5 +143,17 @@ impl<'a> Processor<'a> {
         }
 
         Ok(())
+    }
+}
+
+pub(crate) struct ProcessResult {
+    pub(crate) tera: Tera,
+    pub(crate) context: Context,
+    pub(crate) actions: Vec<Action>,
+}
+
+impl std::fmt::Display for ProcessResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.actions.get_grouped_actions())
     }
 }

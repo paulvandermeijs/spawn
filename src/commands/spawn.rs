@@ -2,7 +2,7 @@ use anyhow::Result;
 use log::info;
 use std::{env, path::PathBuf, str::FromStr};
 
-use crate::{config::Config, processor::Processor, template::Template};
+use crate::{config::Config, processor::Processor, template::Template, writer::Writer};
 
 pub(crate) fn spawn(config: &Config, uri: String) -> Result<()> {
     let uri = config.resolve_alias(uri);
@@ -25,6 +25,12 @@ pub(crate) fn spawn(config: &Config, uri: String) -> Result<()> {
     info!("The current directory is {:?}", cwd.display());
 
     let processor = Processor::from_template(&template);
+    let process_result = processor.process(cwd)?;
 
-    processor.process(cwd)
+    println!("");
+    print!("{process_result}");
+
+    let writer = Writer::from_process_result(&process_result);
+
+    writer.write()
 }

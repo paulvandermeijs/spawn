@@ -4,6 +4,7 @@ mod fs;
 mod processor;
 mod repo;
 mod template;
+mod writer;
 
 use anyhow::{Error, Result};
 use clap::{Parser, Subcommand};
