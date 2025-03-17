@@ -1,9 +1,11 @@
+mod prompt;
+
 use anyhow::Result;
 use log::{info, warn};
 use std::{fs::File, path::PathBuf};
 use tera::{Context, Tera};
 
-use crate::template::{plugins::Plugins, Template};
+use crate::template::Template;
 
 const FILENAME_TEMPLATE_NAME: &str = "__filename_template";
 
@@ -114,121 +116,28 @@ impl<'a> Processor<'a> {
         tera_template: &tera::Template,
         context: &mut tera::Context,
     ) -> Result<()> {
-        let template_config = self.template.get_config();
         use tera::ast::{ExprVal, Node};
         let ast = &tera_template.ast;
-        let plugins = self.template.get_plugins();
 
         for node in ast {
             let Node::VariableBlock(_, expr) = node else {
                 continue;
             };
-            let ExprVal::Ident(ident) = &expr.val else {
+            let ExprVal::Ident(identifier) = &expr.val else {
                 continue;
             };
 
-            if context.contains_key(ident) {
+            if context.contains_key(identifier) {
                 continue;
             }
 
-            let message = format!("Provide a value for '{ident}':");
-            let (message, help_message, placeholder, initial_value, default) =
-                match template_config.get_var(&ident) {
-                    Some(var) => {
-                        let message = match &var.message {
-                            Some(message) => message.as_str(),
-                            None => &message,
-                        };
-                        let help_message = var.help_message.as_ref().map(|s| s.as_str());
-                        let placeholder = var.placeholder.as_ref().map(|s| s.as_str());
-                        let initial_value = var.initial_value.as_ref().map(|s| s.as_str());
-                        let default = var.default.as_ref().map(|s| s.as_str());
+            let value = prompt::prompt(self.template, identifier)?;
 
-                        (message, help_message, placeholder, initial_value, default)
-                    }
-                    None => (message.as_str(), None, None, None, None),
-                };
-            let message = plugins.message(ident, message)?;
-            let help_message = plugins.help_message(ident, help_message)?;
-            let placeholder = plugins.placeholder(ident, placeholder)?;
-            let initial_value = plugins.initial_value(ident, initial_value)?;
-            let default = plugins.default(ident, default)?;
+            info!("Collected value {value:?} for {identifier:?}");
 
-            let prompt = inquire::Text::new(&message);
-            let prompt = match &help_message {
-                Some(help_message) => prompt.with_help_message(help_message),
-                None => prompt,
-            };
-            let prompt = match &placeholder {
-                Some(placeholder) => prompt.with_placeholder(placeholder),
-                None => prompt,
-            };
-            let prompt = match &initial_value {
-                Some(initial_value) => prompt.with_initial_value(initial_value),
-                None => prompt,
-            };
-            let prompt = match &default {
-                Some(default) => prompt.with_default(default),
-                None => prompt,
-            };
-            let prompt = prompt.with_autocomplete({
-                let plugins = plugins.clone();
-
-                Autocomplete {
-                    plugins,
-                    identifier: ident.to_string(),
-                }
-            });
-            let formatter = move |input: &str| plugins.format(&ident, input).unwrap();
-            let prompt = prompt.with_formatter(&formatter);
-            let validator = {
-                let plugins = plugins.clone();
-                let ident = ident.to_string();
-
-                use inquire::validator::Validation;
-
-                move |input: &str| match plugins.validate(&ident, input)? {
-                    Ok(_) => Ok(Validation::Valid),
-                    Err(message) => Ok(Validation::Invalid(message.into())),
-                }
-            };
-            let prompt = prompt.with_validator(validator);
-            let value = prompt.prompt()?;
-
-            info!("Collected value {value:?} for {ident:?}");
-
-            context.insert(ident, &value);
+            context.insert(identifier, &value);
         }
 
         Ok(())
-    }
-}
-
-#[derive(Clone)]
-struct Autocomplete {
-    plugins: Plugins,
-    identifier: String,
-}
-
-impl inquire::Autocomplete for Autocomplete {
-    fn get_suggestions(
-        &mut self,
-        input: &str,
-    ) -> std::result::Result<Vec<String>, inquire::CustomUserError> {
-        self.plugins
-            .suggestions(&self.identifier, input)
-            .map_err(|e| e.to_string().into())
-    }
-
-    fn get_completion(
-        &mut self,
-        input: &str,
-        highlighted_suggestion: Option<String>,
-    ) -> std::result::Result<inquire::autocompletion::Replacement, inquire::CustomUserError> {
-        Ok(self.plugins.completion(
-            &self.identifier,
-            input,
-            highlighted_suggestion.as_ref().map(|v| v.as_str()),
-        )?)
     }
 }
