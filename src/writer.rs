@@ -1,8 +1,15 @@
+mod diff;
+mod prompt;
+
 use anyhow::Result;
 use log::info;
+use prompt::PromptResult;
 use std::fs::File;
 
-use crate::processor::{actions::Action, ProcessResult};
+use crate::processor::{
+    actions::{Action, Write},
+    ProcessResult,
+};
 
 pub(crate) struct Writer<'a> {
     process_result: &'a ProcessResult,
@@ -16,13 +23,22 @@ impl<'a> Writer<'a> {
     pub(crate) fn write(&self) -> Result<()> {
         let tera = &self.process_result.tera;
         let context = &self.process_result.context;
+        let mut replace_all = false;
 
         for action in &self.process_result.actions {
             let (name, target) = match action {
                 Action::Create(write) => (&write.name, &write.target),
                 Action::Replace(write) => {
-                    if !self.prompt(write)? {
-                        continue;
+                    if !replace_all {
+                        let prompt_result = self.prompt(write)?;
+
+                        if let PromptResult::No = prompt_result {
+                            continue;
+                        }
+
+                        if let PromptResult::All = prompt_result {
+                            replace_all = true;
+                        }
                     }
 
                     (&write.name, &write.target)
@@ -43,12 +59,19 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
-    fn prompt(&self, write: &crate::processor::actions::Write) -> Result<bool> {
-        let message = format!("Are you sure you wish to replace '{}'?", write.name);
-        let result = inquire::Confirm::new(&message)
-            .with_default(true)
-            .prompt()?;
+    fn prompt(&self, write: &Write) -> Result<PromptResult> {
+        let prompt_result = loop {
+            let prompt_result = prompt::prompt(write)?;
 
-        Ok(result)
+            if let PromptResult::Diff = prompt_result {
+                let tera = &self.process_result.tera;
+                let context = &self.process_result.context;
+                diff::diff(tera, context, write)?;
+            } else {
+                break prompt_result;
+            }
+        };
+
+        Ok(prompt_result)
     }
 }
