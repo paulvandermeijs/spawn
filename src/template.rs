@@ -35,7 +35,7 @@ impl Template {
         }
     }
 
-    pub fn init(&self) -> Result<&Self> {
+    pub fn init(self) -> Result<Self> {
         let cache_dir = self.cache_dir()?;
 
         if cache_dir.is_dir() {

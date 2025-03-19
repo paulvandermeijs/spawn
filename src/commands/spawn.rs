@@ -9,7 +9,7 @@ pub(crate) fn spawn(config: &Config, uri: String) -> Result<()> {
 
     info!("Using template {uri:?}");
 
-    let template = Template::from_uri(uri);
+    let template = Template::from_uri(uri).init()?;
     let plugins = template.get_plugins();
     let info = template.get_info().map(|x| x.as_str());
     let info = plugins.info(info)?;

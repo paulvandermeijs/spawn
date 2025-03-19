@@ -22,7 +22,7 @@ impl<'a> Processor<'a> {
 
     pub(crate) fn process(&self, cwd: PathBuf) -> Result<ProcessResult> {
         let plugins = self.template.get_plugins();
-        let cache_dir = self.template.init()?.cache_dir()?;
+        let cache_dir = self.template.cache_dir()?;
         let ignore = self.get_ignore();
         let mut tera = Tera::default();
         let context = Context::new();
