@@ -1,6 +1,10 @@
 use anyhow::Result;
 use log::info;
-use std::{env, path::PathBuf, str::FromStr};
+use std::{
+    env::{self, set_current_dir},
+    path::PathBuf,
+    str::FromStr,
+};
 
 use crate::{config::Config, processor::Processor, template::Template, writer::Writer};
 
@@ -21,6 +25,8 @@ pub(crate) fn spawn(config: &Config, uri: String) -> Result<()> {
     let cwd = env::current_dir()?;
     let cwd = plugins.cwd(cwd.to_string_lossy().to_string())?;
     let cwd = PathBuf::from_str(&cwd)?;
+
+    set_current_dir(&cwd)?;
 
     info!("The current directory is {:?}", cwd.display());
 
