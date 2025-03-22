@@ -1,47 +1,63 @@
 use anyhow::Result;
 
-use crate::template::{plugins::Plugins, Template};
+use crate::template::{config::Var, plugins::Plugins, Template};
 
 pub(super) fn prompt(template: &Template, identifier: &str) -> Result<String> {
-    let template_config = template.get_config();
+    let config = template.get_config();
+    let var = config.get_var(template, identifier)?;
+    let value = match var {
+        Var::Text {
+            identifier,
+            message,
+            help_message,
+            placeholder,
+            initial_value,
+            default,
+        } => prompt_text(
+            template,
+            identifier.as_ref(),
+            message,
+            help_message,
+            placeholder,
+            initial_value,
+            default,
+        )?,
+        Var::Select {
+            identifier: _,
+            message,
+            options,
+            help_message,
+        } => prompt_select(message, options, help_message)?,
+    };
+
+    Ok(value)
+}
+
+fn prompt_text(
+    template: &Template,
+    identifier: &str,
+    message: Option<String>,
+    help_message: Option<String>,
+    placeholder: Option<String>,
+    initial_value: Option<String>,
+    default: Option<String>,
+) -> Result<String> {
     let plugins = template.get_plugins();
-    let message = format!("Provide a value for '{identifier}':");
-    let (message, help_message, placeholder, initial_value, default) =
-        match template_config.get_var(&identifier) {
-            Some(var) => {
-                let message = match &var.message {
-                    Some(message) => message.as_str(),
-                    None => &message,
-                };
-                let help_message = var.help_message.as_ref().map(|s| s.as_str());
-                let placeholder = var.placeholder.as_ref().map(|s| s.as_str());
-                let initial_value = var.initial_value.as_ref().map(|s| s.as_str());
-                let default = var.default.as_ref().map(|s| s.as_str());
-
-                (message, help_message, placeholder, initial_value, default)
-            }
-            None => (message.as_str(), None, None, None, None),
-        };
-    let message = plugins.message(identifier, message)?;
-    let help_message = plugins.help_message(identifier, help_message)?;
-    let placeholder = plugins.placeholder(identifier, placeholder)?;
-    let initial_value = plugins.initial_value(identifier, initial_value)?;
-    let default = plugins.default(identifier, default)?;
-
-    let prompt = inquire::Text::new(&message);
-    let prompt = match &help_message {
+    let message = message.as_ref().map_or_else(|| "", |s| s.as_str());
+    let prompt = inquire::Text::new(message);
+    let prompt = match help_message.as_ref() {
         Some(help_message) => prompt.with_help_message(help_message),
         None => prompt,
     };
-    let prompt = match &placeholder {
+    let prompt = match placeholder.as_ref() {
         Some(placeholder) => prompt.with_placeholder(placeholder),
         None => prompt,
     };
-    let prompt = match &initial_value {
+    let prompt = match initial_value.as_ref() {
         Some(initial_value) => prompt.with_initial_value(initial_value),
         None => prompt,
     };
-    let prompt = match &default {
+    let prompt = match default.as_ref() {
         Some(default) => prompt.with_default(default),
         None => prompt,
     };
@@ -67,6 +83,23 @@ pub(super) fn prompt(template: &Template, identifier: &str) -> Result<String> {
         }
     };
     let prompt = prompt.with_validator(validator);
+    let value = prompt.prompt()?;
+
+    Ok(value)
+}
+
+fn prompt_select(
+    message: Option<String>,
+    options: Vec<String>,
+    help_message: Option<String>,
+) -> Result<String> {
+    let message = message.as_ref().map_or_else(|| "", |s| s.as_str());
+    let prompt = inquire::Select::new(message, options);
+    let prompt = match help_message.as_ref() {
+        Some(help_message) => prompt.with_help_message(help_message),
+        None => prompt,
+    };
+
     let value = prompt.prompt()?;
 
     Ok(value)

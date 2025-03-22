@@ -21,6 +21,7 @@ const FUNCTION_SUGGESTIONS: &str = "suggestions";
 const FUNCTION_COMPLETION: &str = "completion";
 const FUNCTION_FORMAT: &str = "format";
 const FUNCTION_VALIDATE: &str = "validate";
+const FUNCTION_OPTIONS: &str = "options";
 
 #[derive(Clone)]
 pub(crate) struct Plugins {
@@ -296,6 +297,41 @@ impl Plugins {
             SteelVal::StringV(steel_string) => Err(steel_string.to_string()),
             _ => Ok(()),
         };
+
+        Ok(result)
+    }
+
+    pub(crate) fn options(&self, identifier: &str, value: &Vec<String>) -> Result<Vec<String>> {
+        let value_argument = value
+            .iter()
+            .map(|v| SteelVal::StringV(v.into()))
+            .collect::<Vec<SteelVal>>();
+        let value_argument = SteelVal::ListV(value_argument.into());
+        let arguments = vec![identifier.to_string().into(), value_argument];
+        let Some(result) = self.call_function(FUNCTION_OPTIONS, arguments) else {
+            return Ok(value.to_vec());
+        };
+        let SteelVal::ListV(result) = result? else {
+            return Err(anyhow::Error::msg(format!(
+                "Plugin {FUNCTION_OPTIONS:?} should return a list"
+            )));
+        };
+        let result = result.into_iter().try_fold(Vec::new(), |mut result, v| {
+            let v =
+                match v {
+                    SteelVal::StringV(steel_string) => steel_string.to_string(),
+                    SteelVal::NumV(int) => int.to_string(),
+                    SteelVal::IntV(int) => int.to_string(),
+                    SteelVal::CharV(char) => char.to_string(),
+                    _ => return Err(anyhow::Error::msg(
+                        "List returned by {FUNCTION_OPTIONS:?} should only contain string values",
+                    )),
+                };
+
+            result.push(v);
+
+            Ok(result)
+        })?;
 
         Ok(result)
     }

@@ -1,4 +1,4 @@
-mod config;
+pub(crate) mod config;
 pub(crate) mod plugins;
 
 use anyhow::{Error, Result};
