@@ -1,5 +1,6 @@
 pub(crate) mod actions;
 mod prompt;
+mod tera_extensions;
 
 use actions::{Action, ActionVec, Write};
 use anyhow::Result;
@@ -24,7 +25,8 @@ impl<'a> Processor<'a> {
         let plugins = self.template.get_plugins();
         let cache_dir = self.template.cache_dir()?;
         let ignore = self.get_ignore();
-        let mut tera = Tera::default();
+        let tera = Tera::default();
+        let mut tera = tera_extensions::extend(tera);
         let context = Context::new();
         let mut context = plugins.context(context)?;
 

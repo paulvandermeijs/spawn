@@ -2932,6 +2932,7 @@ dependencies = [
  "env_logger",
  "gix",
  "globset",
+ "heck",
  "inquire",
  "log",
  "pathdiff",
