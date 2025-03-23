@@ -12,11 +12,11 @@ use crate::template::Template;
 const FILENAME_TEMPLATE_NAME: &str = "__filename_template";
 
 pub(crate) struct Processor<'a> {
-    template: &'a Template,
+    template: &'a Template<'a>,
 }
 
 impl<'a> Processor<'a> {
-    pub(crate) fn from_template(template: &'a Template) -> Self {
+    pub(crate) fn from_template(template: &'a Template<'a>) -> Self {
         Self { template }
     }
 

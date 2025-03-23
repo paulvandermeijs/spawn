@@ -2,9 +2,9 @@ use anyhow::Result;
 
 use crate::template::{config::Var, plugins::Plugins, Template};
 
-pub(super) fn prompt(template: &Template, identifier: &str) -> Result<String> {
+pub(super) fn prompt<'a>(template: &'a Template<'a>, identifier: &str) -> Result<String> {
     let config = template.get_config();
-    let var = config.get_var(template, identifier)?;
+    let var = config.get_var(identifier)?;
     let value = match var {
         Var::Text {
             identifier,

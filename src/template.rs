@@ -16,15 +16,15 @@ const PLUGINS_FILENAME: &str = "plugins.scm";
 const INFO_FILENAME: &str = "info.txt";
 
 #[derive(Default)]
-pub(crate) struct Template {
+pub(crate) struct Template<'a> {
     pub uri: String,
     pub hash: String,
-    config: OnceLock<Config>,
+    config: OnceLock<Config<'a>>,
     plugins: OnceLock<Plugins>,
     info: OnceLock<Option<String>>,
 }
 
-impl Template {
+impl<'a> Template<'a> {
     pub fn from_uri(uri: String) -> Self {
         let hash = create_hash(&uri);
 
@@ -80,17 +80,9 @@ impl Template {
         Ok(lines)
     }
 
-    pub fn get_config(&self) -> &Config {
+    pub fn get_config(&'a self) -> &'a Config<'a> {
         let config = self.config.get_or_init(|| {
-            let config_path = self.config_dir().unwrap().as_path().join(CONFIG_FILENAME);
-
-            if !config_path.is_file() {
-                return Config::default();
-            }
-
-            info!("Using project config file {config_path:?}");
-
-            let config = Config::try_from_file(&config_path).unwrap();
+            let config = Config::try_from_template(self).unwrap();
 
             config
         });

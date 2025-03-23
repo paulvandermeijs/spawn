@@ -1,47 +1,44 @@
 use anyhow::Result;
+use log::info;
 use serde::Deserialize;
 use std::path::Path;
 
-use super::Template;
+use super::{Template, CONFIG_FILENAME};
 
-#[derive(Default, Deserialize)]
-pub(crate) struct Config {
-    #[serde(rename = "var", default = "Vec::new")]
-    vars: Vec<Var>,
+pub(crate) struct Config<'a> {
+    template: &'a Template<'a>,
+    config_file: ConfigFile,
 }
 
-impl Config {
-    pub(super) fn try_from_file(path: &Path) -> Result<Config> {
-        let config_data = std::fs::read_to_string(&path)?;
-        let config: Config = toml::from_str(&config_data)?;
+impl<'a> Config<'a> {
+    pub(super) fn try_from_template(template: &'a Template<'a>) -> Result<Config<'a>> {
+        let config_path = template
+            .config_dir()
+            .unwrap()
+            .as_path()
+            .join(CONFIG_FILENAME);
+
+        if !config_path.is_file() {
+            return Ok(Self {
+                template,
+                config_file: ConfigFile::default(),
+            });
+        }
+
+        info!("Using template config file {config_path:?}");
+
+        let config_file = ConfigFile::try_from_file(&config_path).unwrap();
+        let config = Config {
+            template,
+            config_file,
+        };
 
         Ok(config)
     }
 
-    pub(crate) fn get_var(&self, template: &Template, identifier: &str) -> Result<Var> {
-        let predicate = |v: &Var| match v {
-            Var::Text {
-                identifier: i,
-                message: _,
-                help_message: _,
-                placeholder: _,
-                initial_value: _,
-                default: _,
-            } => i == identifier,
-            Var::Select {
-                identifier: i,
-                message: _,
-                options: _,
-                help_message: _,
-            } => i == identifier,
-        };
-        let var = self
-            .vars
-            .clone()
-            .into_iter()
-            .find(predicate)
-            .unwrap_or_default();
-        let plugins = template.get_plugins();
+    pub(crate) fn get_var(&self, identifier: &str) -> Result<Var> {
+        let var = self.config_file.get_var(identifier)?;
+        let plugins = self.template.get_plugins();
         let default_message = format!("Provide a value for '{identifier}':");
 
         let var = match var {
@@ -99,6 +96,48 @@ impl Config {
                 }
             }
         };
+
+        Ok(var)
+    }
+}
+
+#[derive(Default, Deserialize)]
+struct ConfigFile {
+    #[serde(rename = "var", default = "Vec::new")]
+    vars: Vec<Var>,
+}
+
+impl ConfigFile {
+    fn try_from_file(path: &Path) -> Result<ConfigFile> {
+        let config_data = std::fs::read_to_string(&path)?;
+        let config: ConfigFile = toml::from_str(&config_data)?;
+
+        Ok(config)
+    }
+
+    fn get_var(&self, identifier: &str) -> Result<Var> {
+        let predicate = |v: &Var| match v {
+            Var::Text {
+                identifier: i,
+                message: _,
+                help_message: _,
+                placeholder: _,
+                initial_value: _,
+                default: _,
+            } => i == identifier,
+            Var::Select {
+                identifier: i,
+                message: _,
+                options: _,
+                help_message: _,
+            } => i == identifier,
+        };
+        let var = self
+            .vars
+            .clone()
+            .into_iter()
+            .find(predicate)
+            .unwrap_or_default();
 
         Ok(var)
     }
