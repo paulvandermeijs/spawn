@@ -31,6 +31,10 @@ pub(crate) fn list(config: &Config) -> Result<()> {
         warn!("No aliases configured");
     }
 
+    let mut aliases = aliases.into_iter().collect::<Vec<_>>();
+
+    aliases.sort_by(|a, b| a.0.cmp(b.0));
+
     table
         .load_preset(UTF8_FULL)
         .apply_modifier(UTF8_ROUND_CORNERS)
