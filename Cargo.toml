@@ -29,7 +29,7 @@ pathdiff = "0.2.3"
 serde = { version = "1.0.218", features = ["derive"] }
 sha2 = "0.10.8"
 similar = "2.7.0"
-steel-core = { git = "https://github.com/mattwparas/steel.git" }
+steel-core = "0.8.1"
 tera = "1.20.0"
 toml = "0.8.20"
 walkdir = "2.5.0"
