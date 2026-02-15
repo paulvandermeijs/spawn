@@ -12,6 +12,8 @@ use clap_verbosity::Verbosity;
 use config::Config;
 use log::error;
 
+use commands::{alias, spawn};
+
 /// Create files and folders from templates
 #[derive(Parser, Debug)]
 #[command(name = "Spawn", version, about, long_about = None)]
@@ -60,26 +62,29 @@ fn main() {
         .filter_level(cli.verbose.log_level_filter())
         .init();
 
-    config::init().unwrap();
+    let result: Result<()> = (|| {
+        config::init()?;
 
-    let mut config = Config::read();
+        let mut config = Config::read()?;
 
-    use commands::{alias, spawn};
-
-    let result: Result<()> = match (cli.uri, cli.command) {
-        (Some(uri), None) => spawn::spawn(&config, uri),
-        (None, Some(Commands::Alias { command })) => match command {
-            AliasCommands::Add { name, uri } => alias::add(&mut config, name, uri),
-            AliasCommands::Remove { name } => alias::remove(&mut config, name),
-            AliasCommands::List => alias::list(&config),
-        },
-        _ => Err(Error::msg(
-            "Provide either a command or location of a template",
-        )),
-    };
+        match (cli.uri, cli.command) {
+            (Some(uri), None) => spawn::spawn(&config, uri),
+            (None, Some(Commands::Alias { command })) => match command {
+                AliasCommands::Add { name, uri } => alias::add(&mut config, name, uri),
+                AliasCommands::Remove { name } => alias::remove(&mut config, &name),
+                AliasCommands::List => {
+                    alias::list(&config);
+                    Ok(())
+                }
+            },
+            _ => Err(Error::msg(
+                "Provide either a command or location of a template",
+            )),
+        }
+    })();
 
     let code = match result {
-        Ok(_) => 0,
+        Ok(()) => 0,
         Err(message) => {
             error!("{message}");
 

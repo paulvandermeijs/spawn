@@ -11,7 +11,7 @@ pub(crate) fn add(config: &mut Config, name: String, uri: String) -> Result<()> 
     Ok(())
 }
 
-pub(crate) fn remove(config: &mut Config, name: String) -> Result<()> {
+pub(crate) fn remove(config: &mut Config, name: &str) -> Result<()> {
     info!("Removing alias {name:?}");
 
     config.remove_alias(name).write()?;
@@ -19,19 +19,19 @@ pub(crate) fn remove(config: &mut Config, name: String) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn list(config: &Config) -> Result<()> {
+pub(crate) fn list(config: &Config) {
+    use comfy_table::Table;
     use comfy_table::modifiers::UTF8_ROUND_CORNERS;
     use comfy_table::presets::UTF8_FULL;
-    use comfy_table::*;
 
     let aliases = config.get_aliases();
     let mut table = Table::new();
 
-    if aliases.len() < 1 {
+    if aliases.is_empty() {
         warn!("No aliases configured");
     }
 
-    let mut aliases = aliases.into_iter().collect::<Vec<_>>();
+    let mut aliases = aliases.iter().collect::<Vec<_>>();
 
     aliases.sort_by(|a, b| a.0.cmp(b.0));
 
@@ -45,6 +45,4 @@ pub(crate) fn list(config: &Config) -> Result<()> {
     }
 
     println!("{table}");
-
-    Ok(())
 }

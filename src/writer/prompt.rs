@@ -1,3 +1,5 @@
+use std::fmt;
+
 use anyhow::Result;
 use inquire::CustomType;
 
@@ -9,35 +11,6 @@ pub(super) enum PromptResult {
     No,
     All,
     Diff,
-}
-
-impl ToString for PromptResult {
-    fn to_string(&self) -> String {
-        match self {
-            PromptResult::Yes => "Yes".to_string(),
-            PromptResult::No => "No".to_string(),
-            PromptResult::All => "All".to_string(),
-            PromptResult::Diff => "Diff".to_string(),
-        }
-    }
-}
-
-impl std::str::FromStr for PromptResult {
-    type Err = ();
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let s = s.to_lowercase();
-        let s = s.as_str();
-        let result = match s {
-            "yes" | "y" => PromptResult::Yes,
-            "no" | "n" => PromptResult::No,
-            "all" | "a" => PromptResult::All,
-            "diff" | "d" => PromptResult::Diff,
-            _ => return Err(()),
-        };
-
-        Ok(result)
-    }
 }
 
 pub(super) fn prompt(write: &Write) -> Result<PromptResult> {
@@ -54,4 +27,32 @@ pub(super) fn prompt(write: &Write) -> Result<PromptResult> {
         .prompt()?;
 
     Ok(result)
+}
+
+impl fmt::Display for PromptResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PromptResult::Yes => write!(f, "Yes"),
+            PromptResult::No => write!(f, "No"),
+            PromptResult::All => write!(f, "All"),
+            PromptResult::Diff => write!(f, "Diff"),
+        }
+    }
+}
+
+impl std::str::FromStr for PromptResult {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let s = s.to_lowercase();
+        let result = match s.as_str() {
+            "yes" | "y" => PromptResult::Yes,
+            "no" | "n" => PromptResult::No,
+            "all" | "a" => PromptResult::All,
+            "diff" | "d" => PromptResult::Diff,
+            _ => return Err(()),
+        };
+
+        Ok(result)
+    }
 }

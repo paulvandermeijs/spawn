@@ -1,9 +1,9 @@
 [package]
 name = "spawn-cli"
 version = "0.8.0"
-edition = "2021"
+edition = "2024"
 description = "A command-line tool for creating files and folders from a template."
-license = "MIT" 
+license = "MIT"
 authors = ["Paul van der Meijs"]
 repository = "https://github.com/paulvandermeijs/spawn"
 keywords = ["cli"]
@@ -11,6 +11,16 @@ keywords = ["cli"]
 [[bin]]
 name = "spwn"
 path = "src/main.rs"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Allow these pedantic lints that would be too noisy
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+unnecessary_debug_formatting = "allow"
 
 [dependencies]
 anyhow = "1.0.95"

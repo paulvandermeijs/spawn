@@ -19,33 +19,25 @@ pub(crate) fn clone(repo_url: &str, dst: &Path) -> Result<()> {
     let (mut prepare_checkout, _) = prepare_clone
         .fetch_then_checkout(gix::progress::Discard, &gix::interrupt::IS_INTERRUPTED)?;
 
-    info!(
-        "Checking out into {:?} ...",
-        prepare_checkout.repo().work_dir().expect("should be there")
-    );
+    if let Some(work_dir) = prepare_checkout.repo().work_dir() {
+        info!("Checking out into {work_dir:?} ...");
+    }
 
     let (repo, _) =
         prepare_checkout.main_worktree(gix::progress::Discard, &gix::interrupt::IS_INTERRUPTED)?;
-    info!(
-        "Repo cloned into {:?}",
-        repo.work_dir().expect("directory pre-created")
-    );
 
-    let remote = repo
-        .find_default_remote(gix::remote::Direction::Fetch)
-        .expect("always present after clone")?;
+    if let Some(work_dir) = repo.work_dir() {
+        info!("Repo cloned into {work_dir:?}");
+    }
 
-    info!(
-        "Default remote: {} -> {}",
-        remote
-            .name()
-            .expect("default remote is always named")
-            .as_bstr(),
-        remote
-            .url(gix::remote::Direction::Fetch)
-            .expect("should be the remote URL")
-            .to_bstring(),
-    );
+    if let Some(remote) = repo.find_default_remote(gix::remote::Direction::Fetch) {
+        let remote = remote?;
+
+        if let (Some(name), Some(url)) = (remote.name(), remote.url(gix::remote::Direction::Fetch))
+        {
+            info!("Default remote: {} -> {}", name.as_bstr(), url.to_bstring());
+        }
+    }
 
     Ok(())
 }

@@ -12,6 +12,10 @@ pub(crate) struct Write {
     pub(crate) target: PathBuf,
 }
 
+pub(crate) trait ActionVec {
+    fn get_grouped_actions(&self) -> GroupedActions<'_>;
+}
+
 impl From<Write> for Action {
     fn from(value: Write) -> Self {
         if value.target.is_file() {
@@ -22,12 +26,8 @@ impl From<Write> for Action {
     }
 }
 
-pub(crate) trait ActionVec {
-    fn get_grouped_actions(&self) -> GroupedActions;
-}
-
 impl ActionVec for Vec<Action> {
-    fn get_grouped_actions(&self) -> GroupedActions {
+    fn get_grouped_actions(&self) -> GroupedActions<'_> {
         let mut grouped_actions = GroupedActions::default();
 
         for action in self {
@@ -49,26 +49,26 @@ pub(crate) struct GroupedActions<'a> {
 
 impl std::fmt::Display for GroupedActions<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.create.len() > 0 {
+        if !self.create.is_empty() {
             writeln!(f, "Create the following files:")?;
 
             for write in &self.create {
                 writeln!(f, "- {}", write.name)?;
             }
 
-            if self.replace.len() > 0 {
-                writeln!(f, "")?;
+            if !self.replace.is_empty() {
+                writeln!(f)?;
             }
         }
 
-        if self.replace.len() > 0 {
+        if !self.replace.is_empty() {
             writeln!(f, "Replace the following files:")?;
 
             for write in &self.replace {
                 writeln!(f, "- {}", write.name)?;
             }
 
-            writeln!(f, "")?;
+            writeln!(f)?;
         }
 
         Ok(())

@@ -3,7 +3,7 @@ use log::info;
 use serde::Deserialize;
 use std::path::Path;
 
-use super::{Template, CONFIG_FILENAME};
+use super::{CONFIG_FILENAME, Template};
 
 pub(crate) struct Config<'a> {
     template: &'a Template<'a>,
@@ -12,11 +12,7 @@ pub(crate) struct Config<'a> {
 
 impl<'a> Config<'a> {
     pub(super) fn try_from_template(template: &'a Template<'a>) -> Result<Config<'a>> {
-        let config_path = template
-            .config_dir()
-            .unwrap()
-            .as_path()
-            .join(CONFIG_FILENAME);
+        let config_path = template.config_dir()?.as_path().join(CONFIG_FILENAME);
 
         if !config_path.is_file() {
             return Ok(Self {
@@ -27,18 +23,17 @@ impl<'a> Config<'a> {
 
         info!("Using template config file {config_path:?}");
 
-        let config_file = ConfigFile::try_from_file(&config_path).unwrap();
-        let config = Config {
+        let config_file = ConfigFile::try_from_file(&config_path)?;
+
+        Ok(Config {
             template,
             config_file,
-        };
-
-        Ok(config)
+        })
     }
 
     pub(crate) fn get_var(&self, identifier: &str) -> Result<Var> {
-        let var = self.config_file.get_var(identifier)?;
-        let plugins = self.template.get_plugins();
+        let var = self.config_file.get_var(identifier);
+        let plugins = self.template.get_plugins()?;
         let default_message = format!("Provide a value for '{identifier}':");
 
         let var = match var {
@@ -55,14 +50,10 @@ impl<'a> Config<'a> {
                     None => default_message,
                 };
                 let message = plugins.message(identifier, &message)?;
-                let help_message = help_message.as_ref().map(|s| s.as_str());
-                let help_message = plugins.help_message(identifier, help_message)?;
-                let placeholder = placeholder.as_ref().map(|s| s.as_str());
-                let placeholder = plugins.placeholder(identifier, placeholder)?;
-                let initial_value = initial_value.as_ref().map(|s| s.as_str());
-                let initial_value = plugins.initial_value(identifier, initial_value)?;
-                let default = default.as_ref().map(|s| s.as_str());
-                let default = plugins.default(identifier, default)?;
+                let help_message = plugins.help_message(identifier, help_message.as_deref())?;
+                let placeholder = plugins.placeholder(identifier, placeholder.as_deref())?;
+                let initial_value = plugins.initial_value(identifier, initial_value.as_deref())?;
+                let default = plugins.default(identifier, default.as_deref())?;
 
                 Var::Text {
                     identifier: identifier.to_string(),
@@ -85,8 +76,7 @@ impl<'a> Config<'a> {
                 };
                 let message = plugins.message(identifier, &message)?;
                 let options = plugins.options(identifier, &options)?;
-                let help_message = help_message.as_ref().map(|s| s.as_str());
-                let help_message = plugins.help_message(identifier, help_message)?;
+                let help_message = plugins.help_message(identifier, help_message.as_deref())?;
 
                 Var::Select {
                     identifier: identifier.to_string(),
@@ -109,37 +99,18 @@ struct ConfigFile {
 
 impl ConfigFile {
     fn try_from_file(path: &Path) -> Result<ConfigFile> {
-        let config_data = std::fs::read_to_string(&path)?;
+        let config_data = std::fs::read_to_string(path)?;
         let config: ConfigFile = toml::from_str(&config_data)?;
 
         Ok(config)
     }
 
-    fn get_var(&self, identifier: &str) -> Result<Var> {
-        let predicate = |v: &Var| match v {
-            Var::Text {
-                identifier: i,
-                message: _,
-                help_message: _,
-                placeholder: _,
-                initial_value: _,
-                default: _,
-            } => i == identifier,
-            Var::Select {
-                identifier: i,
-                message: _,
-                options: _,
-                help_message: _,
-            } => i == identifier,
-        };
-        let var = self
-            .vars
-            .clone()
-            .into_iter()
-            .find(predicate)
-            .unwrap_or_default();
-
-        Ok(var)
+    fn get_var(&self, identifier: &str) -> Var {
+        self.vars
+            .iter()
+            .find(|v| Var::has_identifier(v, identifier))
+            .cloned()
+            .unwrap_or_default()
     }
 }
 
@@ -162,10 +133,18 @@ pub(crate) enum Var {
     },
 }
 
+impl Var {
+    fn has_identifier(&self, name: &str) -> bool {
+        match self {
+            Var::Text { identifier, .. } | Var::Select { identifier, .. } => identifier == name,
+        }
+    }
+}
+
 impl Default for Var {
     fn default() -> Self {
         Var::Text {
-            identifier: "".to_string(),
+            identifier: String::new(),
             message: None,
             help_message: None,
             placeholder: None,

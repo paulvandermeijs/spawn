@@ -7,8 +7,8 @@ use prompt::PromptResult;
 use std::fs::File;
 
 use crate::processor::{
-    actions::{Action, Write},
     ProcessResult,
+    actions::{Action, Write},
 };
 
 pub(crate) struct Writer<'a> {
@@ -53,7 +53,7 @@ impl<'a> Writer<'a> {
 
             let file = File::create(target)?;
 
-            tera.render_to(&name, context, file)?;
+            tera.render_to(name, context, file)?;
         }
 
         Ok(())

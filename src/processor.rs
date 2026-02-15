@@ -5,7 +5,7 @@ mod tera_extensions;
 use actions::{Action, ActionVec, Write};
 use anyhow::Result;
 use log::{info, warn};
-use std::path::PathBuf;
+use std::path::Path;
 use tera::{Context, Tera};
 
 use crate::template::Template;
@@ -21,14 +21,12 @@ impl<'a> Processor<'a> {
         Self { template }
     }
 
-    pub(crate) fn process(&self, cwd: PathBuf) -> Result<ProcessResult> {
-        let plugins = self.template.get_plugins();
+    pub(crate) fn process(&self, cwd: &Path) -> Result<ProcessResult> {
+        let plugins = self.template.get_plugins()?;
         let cache_dir = self.template.cache_dir()?;
-        let ignore = self.get_ignore();
-        let tera = Tera::default();
-        let mut tera = tera_extensions::extend(tera);
-        let context = Context::new();
-        let mut context = plugins.context(context)?;
+        let ignore = self.get_ignore()?;
+        let mut tera = tera_extensions::extend(Tera::default());
+        let mut context = plugins.context(Context::new())?;
 
         info!("Initial context {context:?}");
 
@@ -39,14 +37,16 @@ impl<'a> Processor<'a> {
             .into_iter()
             .filter_map(Result::ok)
             .filter(|path| {
-                let path = pathdiff::diff_paths(path.path(), &cache_dir).unwrap();
-
-                !ignore.is_match(&path)
+                pathdiff::diff_paths(path.path(), &cache_dir).is_some_and(|p| !ignore.is_match(&p))
             })
         {
             let path = path.path();
-            let name = pathdiff::diff_paths(path, &cache_dir).unwrap();
-            let name = name.to_str().unwrap();
+            let Some(rel_path) = pathdiff::diff_paths(path, &cache_dir) else {
+                continue;
+            };
+            let Some(name) = rel_path.to_str() else {
+                continue;
+            };
             let name = self.process_filename(&mut tera, &mut context, name)?;
 
             if path.is_dir() {
@@ -56,24 +56,20 @@ impl<'a> Processor<'a> {
             tera.add_template_file(path, Some(&name))?;
             self.collect_vars(tera.get_template(&name)?, &mut context)?;
 
-            let mut target = cwd.clone();
-            target.push(std::path::Path::new(&name));
-
+            let target = cwd.join(std::path::Path::new(&name));
             let write = Write { name, target };
 
             actions.push(write.into());
         }
 
-        let process_result = ProcessResult {
+        Ok(ProcessResult {
             tera,
             context,
             actions,
-        };
-
-        Ok(process_result)
+        })
     }
 
-    fn get_ignore(&self) -> globset::GlobSet {
+    fn get_ignore(&self) -> Result<globset::GlobSet> {
         use globset::{Glob, GlobSetBuilder};
 
         let mut builder = GlobSetBuilder::new();
@@ -81,26 +77,22 @@ impl<'a> Processor<'a> {
         match self.template.get_ignore() {
             Ok(lines) => {
                 for line in lines {
-                    builder.add(Glob::new(&line).unwrap());
+                    builder.add(Glob::new(&line)?);
                 }
             }
-            Err(e) => warn!("Not using template ignore: {:?}", e),
-        };
+            Err(e) => warn!("Not using template ignore: {e:?}"),
+        }
 
-        use crate::config::get_global_ignore;
-
-        match get_global_ignore() {
+        match crate::config::get_global_ignore() {
             Ok(lines) => {
                 for line in lines {
-                    builder.add(Glob::new(&line).unwrap());
+                    builder.add(Glob::new(&line)?);
                 }
             }
-            Err(e) => warn!("Not using global ignore: {:?}", e),
-        };
+            Err(e) => warn!("Not using global ignore: {e:?}"),
+        }
 
-        let ignore = builder.build().unwrap();
-
-        ignore
+        Ok(builder.build()?)
     }
 
     fn process_filename(
@@ -108,13 +100,13 @@ impl<'a> Processor<'a> {
         tera: &mut Tera,
         context: &mut Context,
         name: &str,
-    ) -> Result<String, anyhow::Error> {
-        tera.add_raw_template(FILENAME_TEMPLATE_NAME, &name)?;
+    ) -> Result<String> {
+        tera.add_raw_template(FILENAME_TEMPLATE_NAME, name)?;
         self.collect_vars(tera.get_template(FILENAME_TEMPLATE_NAME)?, context)?;
-        let result = tera.render(FILENAME_TEMPLATE_NAME, &*context);
+        let result = tera.render(FILENAME_TEMPLATE_NAME, context);
         tera.templates.remove(FILENAME_TEMPLATE_NAME);
-        let name = result?;
-        Ok(name)
+
+        Ok(result?)
     }
 
     fn collect_vars(

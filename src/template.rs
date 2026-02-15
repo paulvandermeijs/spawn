@@ -15,7 +15,6 @@ const CONFIG_FILENAME: &str = "config.toml";
 const PLUGINS_FILENAME: &str = "plugins.scm";
 const INFO_FILENAME: &str = "info.txt";
 
-#[derive(Default)]
 pub(crate) struct Template<'a> {
     pub uri: String,
     pub hash: String,
@@ -25,13 +24,15 @@ pub(crate) struct Template<'a> {
 }
 
 impl<'a> Template<'a> {
-    pub fn from_uri(uri: String) -> Self {
+    pub fn new(uri: String) -> Self {
         let hash = create_hash(&uri);
 
         Template {
             uri,
             hash,
-            ..Default::default()
+            config: OnceLock::new(),
+            plugins: OnceLock::new(),
+            info: OnceLock::new(),
         }
     }
 
@@ -80,42 +81,47 @@ impl<'a> Template<'a> {
         Ok(lines)
     }
 
-    pub fn get_config(&'a self) -> &'a Config<'a> {
-        let config = self.config.get_or_init(|| {
-            let config = Config::try_from_template(self).unwrap();
+    pub fn get_config(&'a self) -> Result<&'a Config<'a>> {
+        if let Some(config) = self.config.get() {
+            return Ok(config);
+        }
 
-            config
-        });
+        let config = Config::try_from_template(self)?;
+        let _ = self.config.set(config);
 
-        config
+        Ok(self.config.get().unwrap())
     }
 
-    pub fn get_plugins(&self) -> &Plugins {
-        let plugins = self.plugins.get_or_init(|| {
-            let plugins_path = self.config_dir().unwrap().as_path().join(PLUGINS_FILENAME);
+    pub fn get_plugins(&self) -> Result<&Plugins> {
+        if let Some(plugins) = self.plugins.get() {
+            return Ok(plugins);
+        }
 
-            Plugins::try_from_file(&plugins_path).unwrap()
-        });
+        let plugins_path = self.config_dir()?.as_path().join(PLUGINS_FILENAME);
+        let plugins = Plugins::try_from_file(&plugins_path)?;
+        let _ = self.plugins.set(plugins);
 
-        plugins
+        Ok(self.plugins.get().unwrap())
     }
 
-    pub fn get_info(&self) -> Option<&String> {
-        let info = self.info.get_or_init(|| {
-            let info_path = self.config_dir().unwrap().as_path().join(INFO_FILENAME);
+    pub fn get_info(&self) -> Result<Option<&String>> {
+        if let Some(info) = self.info.get() {
+            return Ok(info.as_ref());
+        }
 
-            if !info_path.is_file() {
-                return None;
-            }
+        let info_path = self.config_dir()?.as_path().join(INFO_FILENAME);
 
-            info!("Using info from {info_path:?}");
+        if !info_path.is_file() {
+            let _ = self.info.set(None);
+            return Ok(None);
+        }
 
-            let info = std::fs::read_to_string(&info_path).unwrap();
+        info!("Using info from {info_path:?}");
 
-            Some(info)
-        });
+        let info = std::fs::read_to_string(&info_path)?;
+        let _ = self.info.set(Some(info));
 
-        info.as_ref()
+        Ok(self.info.get().and_then(|i| i.as_ref()))
     }
 }
 
@@ -124,10 +130,7 @@ fn create_hash(path: &str) -> String {
 
     let mut hasher = Sha256::new();
 
-    hasher.update(&path);
+    hasher.update(path);
 
-    let result = hasher.finalize();
-    let hash = format!("{:x}", result);
-
-    hash
+    format!("{:x}", hasher.finalize())
 }

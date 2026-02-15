@@ -12,30 +12,32 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn read() -> Config {
-        let config_path = config_path();
+    pub fn read() -> Result<Config> {
+        let config_path = config_path()?;
         let Ok(config_data) = std::fs::read_to_string(&config_path) else {
-            return Default::default();
+            return Ok(Config::default());
         };
 
-        info!("Using config file {config_path:?}");
+        info!("Using config file {}", config_path.display());
 
-        let config: Config = toml::from_str(&config_data).unwrap();
+        let config: Config = toml::from_str(&config_data)?;
 
-        config
+        Ok(config)
     }
 
     pub fn write(&self) -> Result<()> {
-        let config_data = toml::to_string(self).unwrap();
-        let config_path = config_path();
+        let config_data = toml::to_string(self)?;
+        let config_path = config_path()?;
 
         if let Some(parent) = config_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
 
-        info!("Writing config to {config_path:?}");
+        info!("Writing config to {}", config_path.display());
 
-        std::fs::write(config_path, config_data).map_err(|_| Error::msg("Couldn't write config"))
+        std::fs::write(config_path, config_data)?;
+
+        Ok(())
     }
 
     pub fn resolve_alias(&self, uri: String) -> String {
@@ -56,8 +58,8 @@ impl Config {
         self
     }
 
-    pub fn remove_alias(&mut self, name: String) -> &Self {
-        self.aliases.remove(&name);
+    pub fn remove_alias(&mut self, name: &str) -> &Self {
+        self.aliases.remove(name);
 
         self
     }
@@ -74,7 +76,7 @@ pub(crate) fn init() -> Result<()> {
 
     let config_dir = config_dir.as_path();
 
-    info!("Initializing config at {config_dir:?}");
+    info!("Initializing config at {}", config_dir.display());
 
     std::fs::create_dir_all(config_dir)?;
     std::fs::write(
@@ -116,10 +118,12 @@ pub(crate) fn get_global_ignore() -> Result<Vec<String>> {
     Ok(lines)
 }
 
-fn config_path() -> PathBuf {
-    let mut config_path = config_dir().unwrap();
+fn config_path() -> Result<PathBuf> {
+    let Some(mut config_path) = config_dir() else {
+        return Err(Error::msg("No config directory"));
+    };
 
     config_path.push("config.toml");
 
-    config_path
+    Ok(config_path)
 }
