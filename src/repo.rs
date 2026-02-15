@@ -19,14 +19,14 @@ pub(crate) fn clone(repo_url: &str, dst: &Path) -> Result<()> {
     let (mut prepare_checkout, _) = prepare_clone
         .fetch_then_checkout(gix::progress::Discard, &gix::interrupt::IS_INTERRUPTED)?;
 
-    if let Some(work_dir) = prepare_checkout.repo().work_dir() {
+    if let Some(work_dir) = prepare_checkout.repo().workdir() {
         info!("Checking out into {work_dir:?} ...");
     }
 
     let (repo, _) =
         prepare_checkout.main_worktree(gix::progress::Discard, &gix::interrupt::IS_INTERRUPTED)?;
 
-    if let Some(work_dir) = repo.work_dir() {
+    if let Some(work_dir) = repo.workdir() {
         info!("Repo cloned into {work_dir:?}");
     }
 
