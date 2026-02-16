@@ -146,8 +146,8 @@ pub(crate) struct ProcessResult {
     pub(crate) actions: Vec<Action>,
 }
 
-impl std::fmt::Display for ProcessResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.actions.get_grouped_actions())
+impl ProcessResult {
+    pub(crate) fn log(&self) -> std::io::Result<()> {
+        self.actions.get_grouped_actions().log()
     }
 }

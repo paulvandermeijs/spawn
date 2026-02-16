@@ -17,9 +17,6 @@ const FUNCTION_HELP_MESSAGE: &str = "help-message ";
 const FUNCTION_PLACEHOLDER: &str = "placeholder ";
 const FUNCTION_INITIAL_VALUE: &str = "initial-value ";
 const FUNCTION_DEFAULT: &str = "default ";
-const FUNCTION_SUGGESTIONS: &str = "suggestions";
-const FUNCTION_COMPLETION: &str = "completion";
-const FUNCTION_FORMAT: &str = "format";
 const FUNCTION_VALIDATE: &str = "validate";
 const FUNCTION_OPTIONS: &str = "options";
 
@@ -199,80 +196,6 @@ impl Plugins {
         };
 
         Ok(default)
-    }
-
-    pub(crate) fn suggestions(&self, identifier: &str, value: &str) -> Result<Vec<String>> {
-        let arguments = vec![identifier.to_string().into(), value.to_string().into()];
-        let Some(result) = self.call_function(FUNCTION_SUGGESTIONS, arguments) else {
-            return Ok(Vec::new());
-        };
-        let SteelVal::ListV(result) = result? else {
-            return Err(anyhow::Error::msg(format!(
-                "Plugin {FUNCTION_SUGGESTIONS:?} should return a list"
-            )));
-        };
-        let result = result.into_iter().try_fold(Vec::new(), |mut result, v| {
-            let v = match v {
-                SteelVal::StringV(steel_string) => steel_string.to_string(),
-                SteelVal::NumV(int) => int.to_string(),
-                SteelVal::IntV(int) => int.to_string(),
-                SteelVal::CharV(char) => char.to_string(),
-                _ => return Err(anyhow::Error::msg(
-                    "List returned by {FUNCTION_SUGGESTIONS:?} should only contain string values",
-                )),
-            };
-
-            result.push(v);
-
-            Ok(result)
-        })?;
-
-        Ok(result)
-    }
-
-    pub(crate) fn completion(
-        &self,
-        identifier: &str,
-        value: &str,
-        selected_suggestion: Option<&str>,
-    ) -> Result<Option<String>> {
-        let suggestion = selected_suggestion.map(std::string::ToString::to_string);
-        let arguments = vec![
-            identifier.to_string().into(),
-            value.to_string().into(),
-            suggestion.clone().into(),
-        ];
-        let Some(result) = self.call_function(FUNCTION_COMPLETION, arguments) else {
-            return Ok(suggestion);
-        };
-        let SteelVal::StringV(result) = result? else {
-            return Err(anyhow::Error::msg(format!(
-                "Plugin {FUNCTION_COMPLETION:?} should return a string"
-            )));
-        };
-        let result = result.to_string();
-        let result = if result.is_empty() {
-            None
-        } else {
-            Some(result)
-        };
-
-        Ok(result)
-    }
-
-    pub(crate) fn format(&self, identifier: &str, value: &str) -> Result<String> {
-        let arguments = vec![identifier.to_string().into(), value.to_string().into()];
-        let Some(result) = self.call_function(FUNCTION_FORMAT, arguments) else {
-            return Ok(value.to_string());
-        };
-        let SteelVal::StringV(result) = result? else {
-            return Err(anyhow::Error::msg(format!(
-                "Plugin {FUNCTION_FORMAT:?} should return a string"
-            )));
-        };
-        let result = result.to_string();
-
-        Ok(result)
     }
 
     pub(crate) fn validate(&self, identifier: &str, value: &str) -> Result<Result<(), String>> {

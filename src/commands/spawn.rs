@@ -15,12 +15,14 @@ pub(crate) fn spawn(config: &Config, uri: String) -> Result<()> {
 
     let template = Template::new(uri).init()?;
     let plugins = template.get_plugins()?;
-    let info = template.get_info()?;
-    let info = plugins.info(info.map(String::as_str))?;
+    let template_info = template.get_info()?;
+    let template_info = plugins.info(template_info.map(String::as_str))?;
 
-    if let Some(info) = info {
-        println!("{info}");
+    if let Some(template_info) = template_info {
+        println!("{template_info}");
     }
+
+    cliclack::intro(console::style(" SPWN ").on_cyan().black().bold())?;
 
     let cwd = env::current_dir()?;
     let cwd = plugins.cwd(&cwd.to_string_lossy())?;
@@ -33,10 +35,13 @@ pub(crate) fn spawn(config: &Config, uri: String) -> Result<()> {
     let processor = Processor::from_template(&template);
     let process_result = processor.process(&cwd)?;
 
-    println!();
-    print!("{process_result}");
+    process_result.log()?;
 
     let writer = Writer::from_process_result(&process_result);
 
-    writer.write()
+    writer.write()?;
+
+    cliclack::outro("Done!")?;
+
+    Ok(())
 }

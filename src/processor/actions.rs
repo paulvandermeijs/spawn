@@ -47,28 +47,26 @@ pub(crate) struct GroupedActions<'a> {
     replace: Vec<&'a Write>,
 }
 
-impl std::fmt::Display for GroupedActions<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl GroupedActions<'_> {
+    pub(crate) fn log(&self) -> std::io::Result<()> {
         if !self.create.is_empty() {
-            writeln!(f, "Create the following files:")?;
-
-            for write in &self.create {
-                writeln!(f, "- {}", write.name)?;
-            }
-
-            if !self.replace.is_empty() {
-                writeln!(f)?;
-            }
+            let files = self
+                .create
+                .iter()
+                .map(|w| format!("- {}", w.name))
+                .collect::<Vec<_>>()
+                .join("\n");
+            cliclack::log::info(format!("Create the following files:\n{files}"))?;
         }
 
         if !self.replace.is_empty() {
-            writeln!(f, "Replace the following files:")?;
-
-            for write in &self.replace {
-                writeln!(f, "- {}", write.name)?;
-            }
-
-            writeln!(f)?;
+            let files = self
+                .replace
+                .iter()
+                .map(|w| format!("- {}", w.name))
+                .collect::<Vec<_>>()
+                .join("\n");
+            cliclack::log::info(format!("Replace the following files:\n{files}"))?;
         }
 
         Ok(())
