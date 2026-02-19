@@ -1,6 +1,6 @@
 [package]
 name = "spawn-cli"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2024"
 description = "A command-line tool for creating files and folders from a template."
 license = "MIT"
